@@ -1,43 +1,76 @@
 #!/bin/sh
+########################################
+# Help                                 #
+########################################
+Help()
+{
+    #Display Help
+    echo "This script runs the docker-compose file."
+    echo
+    echo "Syntax: run-compose-dev.sh [-h|p]"
+    echo "options:"
+    echo "h     Print this Help."
+    echo "p     Use production environment."
+    echo
+    echo "Example: ENV_VARIABLE_1=value1 ENV_VARIABLE_2=value2 run-compose-dev.sh"
+    echo
+    echo "By default, it runs in development environment."
+    echo "To run in production environment, pass '-p' flag."
+    echo
+    exit 1
+}
+############################################
+# Main Program                             #
+############################################
 
-# The Dockerhub account where the images are stored
-
-
-# These environment variables come from command line arguments.
-# They are consumed by the docker-compose file.
 
 #####################################
-export POSTGRES_DB=boulder_comp
-export POSTGRES_USER=postgres
-export PRODUCTION=true
-#####################################
+# I want to write some logic for verifying these are set..
+# But that'd be much less messy in an action..
+export POSTGRES_DB=$POSTGRES_DB
+export POSTGRES_USER=$POSTGRES_USER
 
-## Less sensitive variables above
+export DOCKERHUB_UNAME=$DOCKERHUB_UNAME
+export NEW_VERSION=$NEW_VERSION
+export HOST=$HOST
 
-## Sensitive variables that should be injected and shared with no one
+export DB_PASS=$DB_PASS
 
-#################################
-#################################
-export DOCKERHUB_UNAME=$1
-export NEW_VERSION=$2
-export HOST=$3
+export EMAIL=$EMAIL
+export GMAIL_APP_PASSWORD=$GMAIL_APP_PASSWORD
 
-export DB_PASS=$4
-
-export EMAIL=$5
-export GMAIL_APP_PASSWORD=$6
-
-export AWS_ACCESS_KEY_ID=$7
-export AWS_SECRET_ACCESS_KEY=$8
-export BUCKET_NAME=$9
+export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+export BUCKET_NAME=$BUCKET_NAME
 #################################
 #################################
 
+DEPLOY_ENV="dev"
+while getopts ":hp" option; do
+    case $option in
+        h) # display Help
+            Help
+            ;;
+        p) # set deployment environment to production
+            DEPLOY_ENV="prod"
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
 
-COMPOSE_DOCKER_CLI_BUILD=0 DOCKER_BUILDKIT=0 docker-compose -f docker-compose.prod.yml build --no-cache
-docker-compose -f docker-compose.prod.yml up -d
+if [ "$DEPLOY_ENV" = "prod" ]; then
+    docker-compose -f docker-compose.prod.yml down # I think?
+    COMPOSE_DOCKER_CLI_BUILD=0 DOCKER_BUILDKIT=0 docker-compose -f docker-compose.prod.yml build --no-cache
+    docker-compose -f docker-compose.prod.yml up -d
+else
+    docker-compose -f docker-compose.dev.yml down
+    docker exec boulder_comp-api-1 python /src/manage.py makemigrations
+    COMPOSE_DOCKER_CLI_BUILD=0 DOCKER_BUILDKIT=0 docker compose -f docker-compose.dev.yml up -d --build
+fi
 
-# make sure the postgres container is ready, then run migrations
 sleep 10 
-docker exec boulder_comp-api-1 python /src/manage.py makemigrations 
+# don't need to makemigrations for prod, right? Migrations should already be in repo?
 docker exec boulder_comp-api-1 python /src/manage.py migrate
