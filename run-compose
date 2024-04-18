@@ -12,10 +12,11 @@ Help()
     echo " -h     Print this Help."
     echo " -p     Use production environment."
     echo
-    echo "Example: ENV_VARIABLE_1=value1 ENV_VARIABLE_2=value2 run-compose-dev.sh"
+    echo "Example: ENV_VARIABLE_1=value1 ENV_VARIABLE_2=value2 run-compose"
     echo
     echo "By default, it runs in development environment."
     echo "To run in production environment, pass '-p' flag."
+    echo "(for example: '..ENV_VARS ./run-compose -p')"
     echo
     exit 1
 }
